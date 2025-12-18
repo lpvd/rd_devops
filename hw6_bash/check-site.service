@@ -1,0 +1,5 @@
+[Unit]
+Description=Google availability check
+
+[Service]
+ExecStart=/home/lpv/scripts/check_site.sh
