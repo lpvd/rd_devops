@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  web:
+    image: nginx:alpine
+    volumes:
+      - web-data:/usr/share/nginx/html
+    networks:
+      - appnet
+
+  db-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+  cache:
+    image: redis:latest
+    networks:
+      - appnet
+
+volumes:
+  db-data:
+  web-data:
+
+networks:
+  appnet:
