@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: echo-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: echo
+        image: busybox
+        command: ["echo", "Hello from EKS!"]
+      restartPolicy: Never
+  backoffLimit: 4
