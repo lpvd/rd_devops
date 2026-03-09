@@ -1,0 +1,17 @@
+---
+# Install base packages
+- name: Install base packages
+  apt:
+    name:
+      - vim
+      - git
+      - mc
+      - ufw
+    state: present
+    update_cache: yes
+
+# Add SSH public key
+- name: Add SSH public key
+  authorized_key:
+    user: polina
+    key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"

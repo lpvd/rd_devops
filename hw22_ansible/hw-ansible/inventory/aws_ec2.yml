@@ -1,0 +1,7 @@
+plugin: aws_ec2
+regions:
+  - eu-north-1
+keyed_groups:
+  - key: tags.Name
+filters:
+  instance-state-name: running
