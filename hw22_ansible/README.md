@@ -47,7 +47,7 @@ mkdir group_vars
 nano group_vars/all.yml
 ```
 
-[group_vars/all.yml](hw-ansible/group_vars/all.yml)
+[group_vars/all.yaml](hw-ansible/group_vars/all.yaml)
 
 # 4. Use dynamic inventory
 
@@ -100,11 +100,13 @@ It's not empty, so working correctly.
 mkdir playbooks
 ```
 
-[playbooks/baseline.yml](hw-ansible/playbooks/baseline.yml)
-[playbooks/firewall.yml](hw-ansible/playbooks/firewall.yml)
-[playbooks/webserver.yml](hw-ansible/playbooks/webserver.yml)
+- [playbooks/baseline.yml](hw-ansible/playbooks/baseline.yml)
 
-full deploy: [playbooks/site.yml](hw-ansible/playbooks/site.yml)
+- [playbooks/firewall.yml](hw-ansible/playbooks/firewall.yml)
+
+- [playbooks/webserver.yml](hw-ansible/playbooks/webserver.yml)
+
+- full deploy: [playbooks/site.yml](hw-ansible/playbooks/site.yml)
 
 # 7. Run playbooks
 
