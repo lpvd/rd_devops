@@ -41,31 +41,34 @@ APIs&Services -> OAuth consent screen -> Audience -> test users -> add my email.
 Authorized redirect URIs - paste the URI copied from n8n -> Create.
 
 Copy Client ID and client secret to n8n -> Sign in to Google.
-![Screenshot 8](images/image8.png)
-![Screenshot 9](images/image9.png)
+![Screenshot 5](images/image8.png)
+![Screenshot 6](images/image9.png)
 
 Enable Google drive API in google cloud.
 
 FINALLY choose the document and sheet to finish the trigger:
-![Screenshot 10](images/image10.png)
+![Screenshot 7](images/image10.png)
 
 And after filling in the form, the result appeared in n8n:
-![Screenshot 11](images/image11.png)
-![Screenshot 12](images/image12.png)
+![Screenshot 8](images/image11.png)
+![Screenshot 9](images/image12.png)
 
-3. Lookup rows in the google sheet - check if the email exists
+3. Edit Fields -> normalize email (to lowercase, trim spaces) and store as email_norm.
 
-4. Add IF node
+4. Lookup rows in the google sheet - check if the email exists
 
-5. If the email exists - append row with status "duplicate"
+5. Add IF node
+If the email exists - update column "status" for this row to "duplicate"
+If not - add telegram node. Paste chat ID and the bot token in credentioals.
+In the settings - retry on fail. Send message to the chat.
 
-6. If not - add telegram node. Paste chat ID and the bot token in credentioals.
-In the settings - retry on fail.
+6. If sent had failed - update column "status" to "failed".
+If not - change "status" to "Sent".
 
-7. Append row with status "Sent"
-![Screenshot 14](images/image14.png)
+# 5. Test the workflow
 
+![Screenshot 10](images/image13.png)
+![Screenshot 11](images/image14.png)
 
-Current state:
-![Screenshot 15](images/image15.png)
-TODO: finish deduplication lookup, test telegram sent
+![Screenshot 12](images/image15.png)
+![Screenshot 13](images/image16.png)
