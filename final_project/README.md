@@ -274,3 +274,84 @@ Check that the app is connected to RDS
 
 xml file of the diagram is stored in the repo as well.
 See [petclinic-diagram.drawio](petclinic-diagram.drawio).
+
+# Summary
+
+## Strengths
+- Infrastructure as code — everything is reproducible. Can be destroyed and set up again in 10 minutes with a single command.
+- Separation of concerns — Terraform for infrastructure, Ansible for configuration, GitHub Actions for deployment. Each tool does its job.
+- Security Groups — RDS is not accessible from the internet, only from EC2. Proper network isolation.
+- ECR instead of Docker Hub — images in a private registry in the same AWS network. Faster and more secure.
+- IAM Role for EC2 — EC2 authenticates in ECR and CloudWatch through a role, without static credentials on the server.
+- Semver versioning — each deployment has a unique version. You can roll back to the previous image.
+- ALB with health check — if the application crashes, ALB stops sending traffic and returns 502 instead of hanging.
+- Remote state — Terraform state in S3 with locking. Safe for teamwork.
+
+## Concerns
+- Zero downtime deployment is absent — 1-2 minutes of downtime with each deployment.
+- Single EC2 instance — no failover. If EC2 goes down — the site is unavailable for manual intervention.
+- RDS without Multi-AZ — if AWS availability zone has problems — the database is unavailable.
+- No auto-recovery — if a Docker container crashes, --restart unless-stopped will restart it, but without monitoring alerts you will not know about it.
+- No rollback strategy in the pipeline — if a new image is launched but the application is not healthy, the pipeline has already completed successfully. A health check is required after deployment.
+- No HTTPS — only HTTP. Critical for production.
+- t3.small and db.t3.micro — too small for real load.
+- No CDN — static files (CSS, JS, images) are served directly from EC2.
+
+# Q&A
+
+1. When to re-run Terraform and/or Anible?
+	Terraform: any change in the infrastructure (secutiry groups, type of EC2 intance, size of RDS storage, adding/deleting new resources)
+		No need to run it after changing source code, docker file, workflows or Ansible playbook.
+	Andible: Change of config on EC2 (installing new too, changing CloudWatch agent config, new version of docker compose, changes in asnible playbook).
+		No need to run if there are changes in source code or workflows.
+
+2. What is the availability of the solution?
+	It has a single point of failure almost everywhere:
+		- EC2 has a single instance, if it fails -> the website is not available
+		- RDS has no multi-AZ
+		- Docker has a single container, so if it crashes, the website in not available
+	AWS SLA for the services:
+		- EC2 single instance - 99.5%
+		- EDS single AZ 	  - 99.95%
+		- ALB 				  - 99.99%
+
+3. What is RPS?
+	Spring Boot with HikariCP connection pool:
+		- max connections to RDS -> 10
+		- total max threads -> 200
+	So an esitmate is:
+		- "light" requests (HTML pages) -> ~200-300 req/secret
+		- "heavy" requests (with DB joins) -> ~50-100 req/secret
+		- simultaneous users -> ~50/100
+
+It runs on EC2 t3.small: 2 vCPU, 2GB RAM. So the bottle neck is not CPU, but storage.
+Spring Boot is ~300-400mb, so there's only ~1.5gb for JVM heap and OS.
+
+RDS db.t3.micro is even weaker: 1 vCPU, 1GB RAM, max_connections ~85.
+With 85+ simultaneous connections to the db new requests will wait or fail.
+
+4. What happens on re-deploy?
+	- docker stop petclinic -> the app is stopped, all new requests get 502 from ALB -> ALB health check starts failing
+	- docker rm petclinic -> container is deleted
+	- docker pull new-image -> downloading the new image ~200mb), takes 30-60sec
+	- docker run new-image -> Spring Boot starts (~30-40sec) -> connects to RDS -> initializes connection pool
+	- ALB healh check passes -> the traffic is restored
+	So the downtime is 1-2 mins.
+
+5. What if a user is using the DB during re-deploying?
+	Option 1 - user is reading data (GET). docker stop -> connection terminated. Data is not corrupted, reading is safe.
+	Option 2 - user is writing (POST). Transaction is not finished -> RDS rolls back. Data is not corrupted (My SQL has ACID guarantees). But user sees an error and loses the entered data.
+	Option 3 - in between requests. HTTP sessions are stateless, every request is independent. Spring-petclinic has no server-side sessions, so it's relatively safe. Once the app is up and running again, the user can continue.
+
+6. How to scale the solution? Any other improvements?
+	a. Horizontally scale EC2. Change 1 EC2 with 1 container to Auto Scaling Group -> N EC2 instances. Set up scaling policy (e.g. CPU > 70% -> add a new instance)
+	b. Vertically scale RDS. Change db.t3.micro (1 vCPU, 1GB) to db.t3.medium або db.r6g.large, add multi-AZ, read replicas.
+	c. Zero downtown deployment. Next step could be changing to Blue/Green deployment - deploy new version while the old one is running, switch only aftre successful ALB healt check on the new (Green) deployment.
+	d. Add HTTPS. AWS Certificate Manager, ALB listener to port 443, redirect HHTP to HTTPS.
+	e. CDN.
+	f. WAF before the ALB.
+	g. Automatic rollback after deployment.
+	h. Setup CloudWatch Alarms.
+	i. Add application-level metrics (not only infrastructure metrics).
+    j. Limit SSH connections. Define a second ingress block with GitHub Actions IP ranges.
+	   OR even better - switch tp SSM Session Manager, get rid of SSH.
